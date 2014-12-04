@@ -1,0 +1,88 @@
+package com.zyc.util;
+
+import java.security.MessageDigest;
+import java.util.Arrays;
+
+import org.apache.log4j.Logger;
+
+/**
+ * 请求校验工具类
+ * <p>
+ * 加密/校验流程如下：
+ * <ul>
+ * <li>1. 将token、timestamp、nonce三个参数进行字典序排序</li>
+ * <li>2. 将三个参数字符串拼接成一个字符串进行sha1加密</li>
+ * <li>3. 开发者获得加密后的字符串可与signature对比，标识该请求来源于微信服务器</li>
+ * </ul>
+ * <p>
+ * @author zyc
+ * @version SignUtil.java 2014-12-01
+ */
+public class SignUtil {
+	private static Logger m_logger = Logger.getLogger(com.zyc.util.SignUtil.class.getName());
+	
+	// 与开发模式接口配置信息中的Token保持一致
+	// TODO 这里要替换成真正项目的Token
+	private static final String TOKEN = "weixin";
+	
+	/**
+	 * 验证签名
+	 * @param signature - String 微信加密签名
+	 * @param timestamp - String 时间戳
+	 * @param nonce - String 随机数
+	 * @return true - 来源是微信， false - 来源非微信
+	 */
+	public static Boolean checkSignature(String signature, String timestamp, String nonce) {
+		String[] arr = new String[] { TOKEN, timestamp, nonce };
+		// 将 TOKEN, timestamp, nonce 三个参数进行字典排序
+		Arrays.sort(arr);
+		StringBuilder content = new StringBuilder();
+		for( int i=0; i<arr.length; i++ ) {
+			content.append(arr[i]);
+		}
+		MessageDigest md = null;
+		String tmpStr = null;
+		try {
+			md = MessageDigest.getInstance("SHA-1");
+			// 将三个参数字符串拼接成一个字符串 进行sha1加密
+			byte[] digest = md.digest(content.toString().getBytes());
+			tmpStr = byteToStr(digest);
+		} catch (Exception e) {
+			m_logger.debug(e);
+			e.printStackTrace();
+		}
+		
+		content = null;
+		// 将sha1加密后的字符串 与 signature对比 ，标识该请求来源于微信
+		return tmpStr != null ? tmpStr.equals(signature.toUpperCase()) : false;
+	}
+	
+	/**
+	 * 将字节数组转换为十六进制字符串
+	 * @param byteArray
+	 * @return
+	 */
+	private static String byteToStr(byte[] byteArray) {
+		String strDigest = "";
+		for(int i=0; i<byteArray.length; i++) {
+			strDigest += byteToHexStr(byteArray[i]);
+		}
+		return strDigest;
+	}
+	
+	/**
+	 * 将字节转换为十六进制字符串
+	 * @param mByte
+	 * @return
+	 */
+	private static String byteToHexStr(byte mByte) {
+		char[] digit = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+		char[] tempArr = new char[2];
+		tempArr[0] = digit[(mByte >>> 4) & 0X0F];
+		tempArr[1] = digit[mByte & 0X0F];
+		
+		String s = new String(tempArr);
+		return s;
+	}
+
+}
